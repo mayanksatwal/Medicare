@@ -3,6 +3,7 @@ import { useState } from "react";
 import Login from "./pages/login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import "./App.css";
+import Appointment from "./pages/Appointment.jsx";
 import { useEffect } from "react";
 const doctors = [
   {
@@ -1005,6 +1006,7 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/dashboard" element={<Dashboard />} />
+    <Route path="/appointment" element={<Appointment />} />
     </Routes>
   );
 }
