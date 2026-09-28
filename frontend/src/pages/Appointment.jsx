@@ -12,6 +12,8 @@ function Appointment() {
   const [search, setSearch] = useState("");
   const [bookingMessage, setBookingMessage] = useState("");
 
+  const today = new Date().toISOString().split("T")[0];
+
   const doctors = [
     {
       name: "Dr. Ananya Sharma",
@@ -72,19 +74,44 @@ function Appointment() {
       item.specialty.toLowerCase().includes(search.toLowerCase())
   );
 
+  // ================= BOOK APPOINTMENT =================
+
   const handleBooking = (e) => {
     e.preventDefault();
+
+    setBookingMessage("");
+
+    if (!doctor) {
+      setBookingMessage("Please select a doctor.");
+      return;
+    }
+
+    if (!date) {
+      setBookingMessage("Please select an appointment date.");
+      return;
+    }
+
+    if (!time) {
+      setBookingMessage("Please select an appointment time.");
+      return;
+    }
 
     const selectedDoctor = doctors.find(
       (item) => item.name === doctor
     );
 
+    if (!selectedDoctor) {
+      setBookingMessage("Please select a valid doctor.");
+      return;
+    }
+
     const appointment = {
-      doctor: selectedDoctor?.name || "",
-      specialty: selectedDoctor?.specialty || "",
-      date,
-      time,
-      reason,
+      doctor: selectedDoctor.name,
+      specialty: selectedDoctor.specialty,
+      date: date,
+      time: time,
+      reason: reason || "General consultation",
+      status: "Upcoming",
     };
 
     localStorage.setItem(
@@ -93,12 +120,23 @@ function Appointment() {
     );
 
     setBookingMessage(
-      "Appointment booked successfully!"
+      "✓ Appointment booked successfully!"
     );
 
     setTimeout(() => {
       navigate("/dashboard");
-    }, 1200);
+    }, 1000);
+  };
+
+  // ================= SELECT DOCTOR =================
+
+  const handleSelectDoctor = (doctorName) => {
+    setDoctor(doctorName);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   return (
@@ -108,7 +146,10 @@ function Appointment() {
 
       <aside className="appointment-sidebar">
 
-        <Link to="/dashboard" className="appointment-brand">
+        <Link
+          to="/dashboard"
+          className="appointment-brand"
+        >
           <div className="appointment-logo">
             ✚
           </div>
@@ -123,7 +164,6 @@ function Appointment() {
             </small>
           </div>
         </Link>
-
 
         <div className="appointment-menu">
 
@@ -144,7 +184,7 @@ function Appointment() {
           </Link>
 
           <a
-            href="#doctors"
+            href="#my-doctors"
             className="appointment-menu-item"
           >
             <span>♧</span>
@@ -163,12 +203,11 @@ function Appointment() {
             href="#available"
             className="appointment-menu-item"
           >
-            <span>✦</span>
+            <span>♧</span>
             Available Doctors
           </a>
 
         </div>
-
 
         <div className="appointment-sidebar-card">
 
@@ -191,12 +230,11 @@ function Appointment() {
 
       </aside>
 
-
       {/* ================= MAIN ================= */}
 
       <div className="appointment-content">
 
-        {/* TOPBAR */}
+        {/* ================= TOPBAR ================= */}
 
         <header className="appointment-topbar">
 
@@ -215,10 +253,12 @@ function Appointment() {
 
           </div>
 
-
           <div className="appointment-user">
 
-            <button className="appointment-notification">
+            <button
+              type="button"
+              className="appointment-notification"
+            >
               ♧
               <i></i>
             </button>
@@ -238,11 +278,9 @@ function Appointment() {
 
         </header>
 
-
         <main className="appointment-main">
 
-
-          {/* PAGE HEADER */}
+          {/* ================= HEADER ================= */}
 
           <section className="appointment-page-header">
 
@@ -272,6 +310,7 @@ function Appointment() {
 
               <div>
                 <strong>01</strong>
+
                 <small>
                   Upcoming appointment
                 </small>
@@ -281,13 +320,9 @@ function Appointment() {
 
           </section>
 
-
-          {/* BOOKING + INFO */}
+          {/* ================= BOOKING ================= */}
 
           <section className="booking-layout">
-
-
-            {/* BOOK FORM */}
 
             <div className="booking-card">
 
@@ -311,8 +346,9 @@ function Appointment() {
 
               </div>
 
-
               <form onSubmit={handleBooking}>
+
+                {/* DOCTOR */}
 
                 <div className="appointment-input-group">
 
@@ -337,12 +373,14 @@ function Appointment() {
                       </option>
 
                       {doctors.map((item) => (
+
                         <option
                           key={item.name}
                           value={item.name}
                         >
                           {item.name} — {item.specialty}
                         </option>
+
                       ))}
 
                     </select>
@@ -351,8 +389,11 @@ function Appointment() {
 
                 </div>
 
+                {/* DATE + TIME */}
 
                 <div className="appointment-two-fields">
+
+                  {/* DATE */}
 
                   <div className="appointment-input-group">
 
@@ -367,6 +408,7 @@ function Appointment() {
                       <input
                         type="date"
                         value={date}
+                        min={today}
                         onChange={(e) =>
                           setDate(e.target.value)
                         }
@@ -377,6 +419,7 @@ function Appointment() {
 
                   </div>
 
+                  {/* TIME */}
 
                   <div className="appointment-input-group">
 
@@ -403,6 +446,7 @@ function Appointment() {
 
                 </div>
 
+                {/* REASON */}
 
                 <div className="appointment-input-group">
 
@@ -421,13 +465,17 @@ function Appointment() {
 
                 </div>
 
+                {/* MESSAGE */}
 
                 {bookingMessage && (
+
                   <div className="booking-success">
-                    ✓ {bookingMessage}
+                    {bookingMessage}
                   </div>
+
                 )}
 
+                {/* CONFIRM */}
 
                 <button
                   type="submit"
@@ -438,17 +486,16 @@ function Appointment() {
                   </span>
 
                   <b>→</b>
+
                 </button>
 
               </form>
 
             </div>
 
-
-            {/* RIGHT INFO */}
+            {/* ================= INFO ================= */}
 
             <div className="booking-side">
-
 
               <div className="booking-info-card blue-info">
 
@@ -468,7 +515,6 @@ function Appointment() {
 
               </div>
 
-
               <div className="booking-info-card green-info">
 
                 <div className="info-icon">
@@ -487,12 +533,12 @@ function Appointment() {
 
               </div>
 
-
               <div className="appointment-help">
 
                 <span>?</span>
 
                 <div>
+
                   <strong>
                     Need help choosing?
                   </strong>
@@ -500,6 +546,7 @@ function Appointment() {
                   <small>
                     Browse our available specialists below.
                   </small>
+
                 </div>
 
               </div>
@@ -508,8 +555,7 @@ function Appointment() {
 
           </section>
 
-
-          {/* AVAILABLE DOCTORS */}
+          {/* ================= AVAILABLE DOCTORS ================= */}
 
           <section
             className="doctors-section"
@@ -536,7 +582,6 @@ function Appointment() {
 
             </div>
 
-
             <div className="doctor-cards">
 
               {filteredDoctors.map((item) => (
@@ -551,7 +596,6 @@ function Appointment() {
                   >
                     {item.initials}
                   </div>
-
 
                   <div className="doctor-card-top">
 
@@ -573,7 +617,6 @@ function Appointment() {
 
                   </div>
 
-
                   <div className="doctor-card-details">
 
                     <span>
@@ -590,11 +633,11 @@ function Appointment() {
 
                   </div>
 
-
                   <button
+                    type="button"
                     className="select-doctor"
                     onClick={() =>
-                      setDoctor(item.name)
+                      handleSelectDoctor(item.name)
                     }
                   >
                     Select doctor
@@ -609,8 +652,96 @@ function Appointment() {
 
           </section>
 
+          {/* ================= MY DOCTORS ================= */}
 
-          {/* UPCOMING */}
+          <section
+            className="doctors-section"
+            id="my-doctors"
+          >
+
+            <div className="appointment-section-heading">
+
+              <div>
+
+                <span>
+                  YOUR CARE TEAM
+                </span>
+
+                <h2>
+                  My Doctors
+                </h2>
+
+              </div>
+
+            </div>
+
+            <div className="doctor-cards">
+
+              {doctors.slice(0, 3).map((item) => (
+
+                <div
+                  className="appointment-doctor-card"
+                  key={`my-${item.name}`}
+                >
+
+                  <div
+                    className={`doctor-card-avatar ${item.color}`}
+                  >
+                    {item.initials}
+                  </div>
+
+                  <div className="doctor-card-top">
+
+                    <div>
+
+                      <h3>
+                        {item.name}
+                      </h3>
+
+                      <p>
+                        {item.specialty}
+                      </p>
+
+                    </div>
+
+                    <span className="online-dot">
+                      ●
+                    </span>
+
+                  </div>
+
+                  <div className="doctor-card-details">
+
+                    <span>
+                      ★ {item.rating}
+                    </span>
+
+                    <span>
+                      {item.experience}
+                    </span>
+
+                  </div>
+
+                  <button
+                    type="button"
+                    className="select-doctor"
+                    onClick={() =>
+                      handleSelectDoctor(item.name)
+                    }
+                  >
+                    Book doctor
+                    <b>→</b>
+                  </button>
+
+                </div>
+
+              ))}
+
+            </div>
+
+          </section>
+
+          {/* ================= RECENT APPOINTMENTS ================= */}
 
           <section
             className="upcoming-section"
@@ -637,7 +768,6 @@ function Appointment() {
 
             </div>
 
-
             <div className="appointment-table">
 
               <div className="appointment-table-head">
@@ -649,7 +779,6 @@ function Appointment() {
                 <span></span>
 
               </div>
-
 
               {appointments.map((item) => (
 
@@ -665,6 +794,7 @@ function Appointment() {
                     </div>
 
                     <span>
+
                       <strong>
                         {item.doctor}
                       </strong>
@@ -672,17 +802,17 @@ function Appointment() {
                       <small>
                         MediCare Hospital
                       </small>
+
                     </span>
 
                   </div>
-
 
                   <span className="table-specialty">
                     {item.specialty}
                   </span>
 
-
                   <span className="table-date">
+
                     <strong>
                       {item.date}
                     </strong>
@@ -690,8 +820,8 @@ function Appointment() {
                     <small>
                       {item.time}
                     </small>
-                  </span>
 
+                  </span>
 
                   <span
                     className={
@@ -703,8 +833,10 @@ function Appointment() {
                     {item.status}
                   </span>
 
-
-                  <button className="table-view">
+                  <button
+                    type="button"
+                    className="table-view"
+                  >
                     View
                   </button>
 
@@ -716,8 +848,7 @@ function Appointment() {
 
           </section>
 
-
-          {/* FOOTER */}
+          {/* ================= FOOTER ================= */}
 
           <footer className="appointment-dashboard-footer">
 

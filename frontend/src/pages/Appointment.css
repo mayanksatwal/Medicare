@@ -1397,4 +1397,17 @@
 
     text-align: center;
   }
+}html {
+  scroll-behavior: smooth;
+}
+
+#my-doctors {
+  scroll-margin-top: 100px;
+}
+html {
+  scroll-behavior: smooth;
+}
+
+#available {
+  scroll-margin-top: 100px;
 }
