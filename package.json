@@ -1,0 +1,17 @@
+{
+  "name": "medicare",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MediCare - appointments, doctors, health records and AI assistant",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install",
+    "start": "npm --prefix backend start",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "seed": "npm --prefix backend run seed"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,366 +1,331 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import "./Login.css";
+import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
+import { motion } from "framer-motion";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  ArrowRight,
+  ArrowLeft,
+  HeartPulse,
+  Stethoscope,
+  UserRound,
+  Info,
+} from "lucide-react";
+import { useAuthConfig } from "../main.jsx";
+import { API_URL, saveSession } from "../utils/api.js";
+import "./Auth.css";
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { googleEnabled } = useAuthConfig();
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [googleHint, setGoogleHint] = useState(false);
+  const [message] = useState(location.state?.message || "");
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoaded(true);
-    }, 100);
+  const redirectAfterAuth = (user) => {
+    if (user?.role === "doctor") {
+      navigate("/doctor-dashboard", { replace: true });
+      return;
+    }
+    const destination = location.state?.from || "/dashboard";
+    navigate(destination, { replace: true });
+  };
 
-    return () => clearTimeout(timer);
-  }, []);
+  const performLogin = async (loginEmail, loginPassword) => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: loginEmail.trim().toLowerCase(),
+          password: loginPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || "Invalid email or password.");
+      }
+
+      const user = saveSession(data, loginEmail.trim());
+      redirectAfterAuth(user);
+    } catch (err) {
+      setError(err.message || "Unable to connect to the server.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
+    await performLogin(email, password);
+  };
 
-  setLoading(true);
-  setLoginError("");
+  const handleDemoLogin = async (role) => {
+    const creds =
+      role === "doctor"
+        ? { email: "aarav@medicare.demo", password: "Doctor@123" }
+        : { email: "patient@medicare.demo", password: "Patient@123" };
+    setEmail(creds.email);
+    setPassword(creds.password);
+    await performLogin(creds.email, creds.password);
+  };
 
-  try {
-    const response = await fetch("http://localhost:5001/api/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: email,
-        password: password,
-      }),
-    });
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError("");
 
-    const data = await response.json();
-
-    if (response.ok && data.success) {
-      localStorage.setItem("patientName", name);
-      localStorage.setItem("patientEmail", email);
-
-      navigate("/dashboard");
-    } else {
-      setLoginError(data.message || "Invalid email or password.");
+    if (!credentialResponse.credential) {
+      setError("Google did not provide a valid credential. Please try again.");
+      return;
     }
-  } catch (error) {
-    console.error("LOGIN ERROR:", error);
-    setLoginError("Unable to connect to MediCare server.");
-  } finally {
-    setLoading(false);
-  }
-};
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          credential: credentialResponse.credential,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || "Google login failed.");
+      }
+
+      const user = saveSession(data);
+      redirectAfterAuth(user);
+    } catch (err) {
+      setError(err.message || "Unable to complete Google login.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError("Google Sign-In was cancelled or unsuccessful. Please try again.");
+  };
 
   return (
-    <div className={`login-page ${loaded ? "login-loaded" : ""}`}>
-      {/* LEFT PREMIUM BRAND EXPERIENCE */}
-
-      <section className="login-visual">
-        <div className="login-noise"></div>
-
-        <div className="login-glow glow-one"></div>
-        <div className="login-glow glow-two"></div>
-
-        {/* BRAND */}
-
-        <Link to="/" className="login-brand">
-          <div className="login-brand-mark">✚</div>
-
-          <div>
-            <strong>MediCare</strong>
-            <span>SMART HEALTHCARE</span>
-          </div>
+    <div className="auth-page">
+      <div className="auth-left">
+        <Link to="/" className="auth-logo">
+          <span className="auth-logo-icon">
+            <HeartPulse size={25} />
+          </span>
+          <span>MediCare</span>
         </Link>
 
-        {/* CONTENT */}
-
-        <div className="login-visual-content">
-          <div className="login-eyebrow">
-            <span></span>
-            WELCOME TO MEDICARE
-          </div>
-
+        <div className="auth-left-content">
+          <span className="auth-tag">WELCOME BACK</span>
           <h1>
             Your health.
             <br />
-            <em>Connected.</em>
+            Your care.
+            <br />
+            <span>One place.</span>
           </h1>
-
           <p>
-            One intelligent healthcare platform for
-            discovering care, managing appointments
-            and staying connected to your health journey.
+            Sign in to book live specialist slots, manage prescriptions, track
+            your health vitals, and chat with MediAI.
           </p>
 
-          {/* FEATURES */}
-
-          <div className="login-benefits">
-            <div className="login-benefit">
-              <div>✦</div>
-
-              <section>
-                <strong>Smarter Healthcare</strong>
-                <span>Technology designed around you</span>
-              </section>
-            </div>
-
-            <div className="login-benefit">
-              <div>◷</div>
-
-              <section>
-                <strong>Connected Appointments</strong>
-                <span>Manage your care with ease</span>
-              </section>
-            </div>
-
-            <div className="login-benefit">
-              <div>◇</div>
-
-              <section>
-                <strong>Privacy-conscious</strong>
-                <span>Designed with security in mind</span>
-              </section>
-            </div>
-          </div>
-        </div>
-
-        {/* ABSTRACT PREMIUM VISUAL */}
-
-        <div className="login-visual-art">
-          <div className="art-ring ring-1"></div>
-          <div className="art-ring ring-2"></div>
-          <div className="art-ring ring-3"></div>
-
-          <div className="art-center">
-            <span>✚</span>
-            <strong>MC</strong>
-          </div>
-
-          <div className="art-card art-card-one">
-            <span>✦</span>
-
+          <div className="auth-feature">
+            <span>✓</span>
             <div>
-              <strong>Smart Care</strong>
-              <small>Connected healthcare</small>
+              <strong>Real-time appointment booking</strong>
+              <small>View available slots and reschedule anytime.</small>
             </div>
           </div>
 
-          <div className="art-card art-card-two">
-            <strong>24/7</strong>
-            <small>Healthcare access</small>
+          <div className="auth-feature">
+            <span>✓</span>
+            <div>
+              <strong>Connected patient & doctor portals</strong>
+              <small>Digital prescriptions, records, and MediAI support.</small>
+            </div>
           </div>
         </div>
 
-        <div className="login-bottom">
-          <span>SMART</span>
-          <i>•</i>
-
-          <span>CONNECTED</span>
-          <i>•</i>
-
-          <span>SECURE</span>
+        <div className="auth-left-footer">
+          © {new Date().getFullYear()} MediCare Healthcare
         </div>
-      </section>
+      </div>
 
-      {/* LOGIN FORM */}
+      <div className="auth-right">
+        <div className="auth-mobile-logo">
+          <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "inherit", textDecoration: "none" }}>
+            <HeartPulse size={25} /> MediCare
+          </Link>
+        </div>
 
-      <section className="login-form-side">
-        <div className="form-wrapper">
-          {/* MOBILE BRAND */}
-
-          <Link to="/" className="mobile-login-brand">
-            <div className="login-brand-mark">✚</div>
-            <strong>MediCare</strong>
+        <motion.div
+          className="auth-card"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+        >
+          <Link to="/" className="auth-back-link">
+            <ArrowLeft size={15} /> Back to Home
           </Link>
 
-          {/* BACK */}
-
-          <Link to="/" className="back-home">
-            <span>←</span>
-            Back to home
-          </Link>
-
-          {/* HEADING */}
-
-          <div className="form-heading">
-            <div className="mini-label">SECURE ACCESS</div>
-
-            <h2>
-              Welcome
-              <br />
-              <em>back.</em>
-            </h2>
-
-            <p>
-              Sign in to continue your personalized
-              healthcare experience.
-            </p>
+          <div className="auth-heading">
+            <span className="auth-tag">WELCOME BACK</span>
+            <h2>Sign in to MediCare</h2>
+            <p>Enter your registered email and password, or continue with Google.</p>
           </div>
 
-          {/* FORM */}
+          {message && <div className="auth-success">{message}</div>}
 
           <form onSubmit={handleLogin}>
-            {/* PATIENT NAME */}
+            <label className="auth-label">Email address</label>
 
-            <div className="field">
-              <label>Patient name</label>
-
-              <div className="field-box">
-                <span className="field-icon">◉</span>
-
-                <input
-                  type="text"
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="auth-input">
+              <Mail size={19} />
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
             </div>
 
-            {/* EMAIL */}
+            <label className="auth-label">Password</label>
 
-            <div className="field">
-              <label>Email address</label>
+            <div className="auth-input">
+              <Lock size={19} />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
 
-              <div className="field-box">
-                <span className="field-icon">@</span>
-
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* PASSWORD */}
-
-            <div className="field">
-              <div className="password-label">
-                <label>Password</label>
-
-                <a href="#forgot-password">
-                  Forgot password?
-                </a>
-              </div>
-
-              <div className="field-box">
-                <span className="field-icon">•••</span>
-
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-            </div>
-
-            {/* REMEMBER */}
-
-            <label className="remember-row">
-              <input type="checkbox" />
-
-              <span>Keep me signed in</span>
-            </label>
-
-            {/* LOGIN ERROR */}
-
-            {loginError && (
-              <p
-                style={{
-                  color: "#b42318",
-                  marginBottom: "14px",
-                  fontSize: "14px",
-                }}
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label="Toggle password visibility"
               >
-                {loginError}
-              </p>
+                {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+              </button>
+            </div>
+
+            {error && (
+              <div className="auth-error" role="alert">
+                {error}
+              </div>
             )}
 
-            {/* MAIN BUTTON */}
-
-            <button
-              type="submit"
-              className="login-submit"
-              disabled={loading}
-            >
-              <span>
-                {loading
-                  ? "Signing in..."
-                  : "Continue to MediCare"}
-              </span>
-
-              <b>↗</b>
+            <button className="auth-submit" type="submit" disabled={loading}>
+              {loading ? "Signing in..." : "Sign In"}
+              {!loading && <ArrowRight size={19} />}
             </button>
-
-            {/* DIVIDER */}
-
-            <div className="login-divider">
-              <span>OR</span>
-            </div>
-
-            {/* GOOGLE */}
-
-            <button
-              type="button"
-              className="google-login"
-            >
-              <span className="google-letter">G</span>
-
-              Continue with Google
-            </button>
-
-            {/* SIGNUP */}
-
-            <p className="signup-line">
-              New to MediCare?
-
-              <a href="#create-account">
-                Create an account
-              </a>
-            </p>
           </form>
 
-          {/* SECURITY CARD */}
+          <div className="auth-divider">
+            <span>OR CONTINUE WITH</span>
+          </div>
 
-          <div className="security-note">
-            <span>◇</span>
+          <div className="google-login-wrapper">
+            {googleEnabled ? (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                theme="outline"
+                size="large"
+                shape="rect"
+                text="signin_with"
+                width="380"
+              />
+            ) : (
+              <div className="google-fallback-box">
+                <button
+                  type="button"
+                  className="google-fallback-btn"
+                  onClick={() => setGoogleHint((v) => !v)}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      fill="#4285F4"
+                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z"
+                    />
+                  </svg>
+                  Continue with Google
+                </button>
+                {googleHint && (
+                  <p className="google-setup-hint">
+                    <Info size={14} /> Add a Google OAuth 2.0 Web Client ID (
+                    <code>*.apps.googleusercontent.com</code>) in{" "}
+                    <code>backend/.env</code> &amp; <code>frontend/.env</code>{" "}
+                    to activate live Google Sign-In.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
-            <div>
-              <strong>Your privacy matters</strong>
-
-              <p>
-                Your information is handled with
-                security and privacy in mind.
-              </p>
+          <div className="demo-login-box">
+            <span>INSTANT DEMO ACCESS</span>
+            <div className="demo-login-actions">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleDemoLogin("patient")}
+              >
+                <UserRound size={15} /> Demo Patient
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleDemoLogin("doctor")}
+              >
+                <Stethoscope size={15} /> Demo Doctor
+              </button>
             </div>
           </div>
 
-          <div className="login-copyright">
-            © 2026 MediCare · Smart Healthcare Platform
-          </div>
-        </div>
-      </section>
+          <p className="auth-switch">
+            Don't have an account? <Link to="/register">Create account</Link>
+          </p>
+
+          <p className="auth-security">
+            🔒 Encrypted JWT sessions &amp; bcrypt-protected credentials.
+          </p>
+        </motion.div>
+      </div>
     </div>
   );
 }
